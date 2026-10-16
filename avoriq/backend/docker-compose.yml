@@ -1,0 +1,114 @@
+services:
+  # ── PostgreSQL with pgvector extension ──
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: avoriq-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: avoriq
+      POSTGRES_USER: avoriq
+      POSTGRES_PASSWORD: avoriq_secret
+    ports:
+      - "127.0.0.1:5432:5432"   # bound to localhost only; Caddy proxies if needed
+    volumes:
+      - ./data/postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U avoriq -d avoriq"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - avoriq-net
+
+  # ── Ollama LLM Server (CPU-only) ──
+  # Runs gemma3:4b for chat. Embeddings are served by the Hugging Face
+  # Inference API (see .env → EMBEDDING_PRIMARY). To switch back to local
+  # TEI on a GPU host, add the `tei` service back.
+  #
+  # Resource budget for an 8-core / 16 GB VPS:
+  #   - Model weights:       ~3 GB (Q4_0 quantized)
+  #   - KV cache (4k ctx):   ~1.5 GB
+  #   - Runtime overhead:    ~0.3 GB
+  #   - Headroom:            ~5 GB for spikes, seed jobs, parallel load
+  # We cap Ollama at 10 GB so other services (Postgres ~1 GB, backend ~0.3 GB,
+  # frontend ~0.3 GB, OS ~0.6 GB) are never squeezed.
+  ollama:
+    image: ollama/ollama:latest
+    container_name: avoriq-ollama
+    restart: unless-stopped
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
+    ports:
+      - "127.0.0.1:11435:11434"   # bound to localhost only
+    volumes:
+      - ./data/ollama:/root/.ollama
+    environment:
+      - OLLAMA_HOST=0.0.0.0:11434
+      # Only one model loaded at a time. Parallelism = 1 means a 2nd user
+      # has to wait; that's fine on a single-VPS deployment.
+      - OLLAMA_NUM_PARALLEL=1
+      - OLLAMA_MAX_LOADED_MODELS=1
+      # Unload the model 10 min after the last request to free RAM.
+      # First request after unload pays a ~30s reload cost.
+      - OLLAMA_KEEP_ALIVE=10m
+      # Cap context at 4k (default 8k) — halves KV cache.
+      - OLLAMA_CONTEXT_LENGTH=4096
+    deploy:
+      resources:
+        limits:
+          memory: 10G
+        reservations:
+          memory: 4G
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 10s
+      timeout: 10s
+      retries: 15
+      start_period: 30s
+    networks:
+      - avoriq-net
+
+  # ── FastAPI Backend ──
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: avoriq-backend
+    restart: unless-stopped
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
+    ports:
+      - "127.0.0.1:8000:8000"   # bound to localhost only; Caddy proxies
+    env_file:
+      - .env
+    volumes:
+      - .:/app
+    depends_on:
+      postgres:
+        condition: service_healthy
+      ollama:
+        condition: service_healthy
+    networks:
+      - avoriq-net
+
+  # ── Next.js Frontend (production build) ──
+  frontend:
+    build:
+      context: ../frontend
+      dockerfile: Dockerfile
+    container_name: avoriq-frontend
+    restart: unless-stopped
+    env_file:
+      - ../frontend/.env.production
+    ports:
+      - "127.0.0.1:3000:3000"   # bound to localhost only; Caddy reverse-proxies
+    depends_on:
+      - backend
+    networks:
+      - avoriq-net
+
+networks:
+  avoriq-net:
+    driver: bridge
