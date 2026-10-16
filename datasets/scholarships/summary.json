@@ -1,0 +1,19 @@
+{
+  "generated_at": "2026-06-16T15:20:05.572298+00:00",
+  "record_count": 14,
+  "outputs": {
+    "raw_records": "datasets\\scholarships\\raw_records.jsonl",
+    "normalized_csv": "datasets\\scholarships\\normalized_scholarships.csv",
+    "scholarships_csv": "datasets\\scholarships\\scholarships.csv",
+    "gemma_instruction_dataset": "datasets\\scholarships\\gemma_instruction_dataset.jsonl"
+  },
+  "sources": [
+    "buddy4study.com",
+    "data.gov.in"
+  ],
+  "notes": [
+    "Validate scraped data before training or fine-tuning.",
+    "Buddy4Study is a commercial site; keep crawl limits modest and review their terms.",
+    "data.gov.in rows are licensed by the owning publisher under the listed open-data license when available."
+  ]
+}
