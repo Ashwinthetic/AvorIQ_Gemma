@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+  <!-- Bold "A" letterform in Bauhaus Red — fills most of the space -->
+  <polygon points="32,6 6,58 22,58 28,44 36,44 42,58 58,58" fill="#D92A2A"/>
+  <!-- Inner cutout of the A -->
+  <polygon points="32,22 26,40 38,40" fill="#0A0A0A"/>
+  <!-- IQ accent: yellow circle at the top-right corner -->
+  <circle cx="50" cy="14" r="10" fill="#EAB308"/>
+  <!-- Dot inside the circle for the "eye" / focus -->
+  <circle cx="50" cy="14" r="4" fill="#0A0A0A"/>
+</svg>
