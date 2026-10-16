@@ -1,0 +1,64 @@
+name: AvorIQ CI/CD Pipeline
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch: # Allows manual trigger from GitHub UI
+
+jobs:
+  validate:
+    name: Validate Codebase (CI)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: avoriq/frontend/package-lock.json
+
+      - name: Install Frontend Dependencies
+        run: |
+          cd avoriq/frontend
+          npm ci
+
+      - name: Run Frontend Linter
+        run: |
+          cd avoriq/frontend
+          npm run lint
+
+      # Optional: Run backend checks if needed (e.g. syntax or format validation)
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Validate Python Syntax
+        run: |
+          python -m compileall avoriq/backend/app
+
+  deploy:
+    name: Deploy to Server (CD)
+    needs: validate
+    runs-on: ubuntu-latest
+    steps:
+      - name: Execute Remote Deploy Commands via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USERNAME }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: ${{ secrets.SSH_PORT || 22 }}
+          script: |
+            echo "Connected to server. Navigating to project directory..."
+            cd ~/AvorIQ
+            echo "📥 Fetching and pulling latest changes..."
+            git fetch origin
+            git checkout main
+            git reset --hard origin/main
+            echo "🚀 Executing deployment script..."
+            bash scripts/deploy.sh
