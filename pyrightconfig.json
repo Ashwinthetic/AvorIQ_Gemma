@@ -1,0 +1,8 @@
+{
+  "venvPath": "c:\\Users\\adity\\Downloads\\AvorIQ-main (1)\\AvorIQ-main\\avoriq\\backend",
+  "venv": ".venv",
+  "extraPaths": [
+    "avoriq/backend",
+    "avoriq/backend/.venv/Lib/site-packages"
+  ]
+}
